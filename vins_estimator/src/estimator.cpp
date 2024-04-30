@@ -666,7 +666,10 @@ bool Estimator::failureDetection()
     return false;
 }
 
-
+// 非线性优化过程
+// 1.添加要优化的变量 也就是滑动窗口的位置para_Pose[0:n] 速度和Bias para_SpeedBias[0:n]一共15个自由度，IMU的外参也可以加进来估计
+// 2.添加残差，残差项分为4块 先验残差+IMU残差+视觉残差+闭环检测的残差
+// 3.根据倒数第二帧是不是关键帧确定marginization
 void Estimator::optimization()
 {
     ceres::Problem problem;

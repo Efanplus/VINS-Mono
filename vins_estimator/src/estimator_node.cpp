@@ -137,6 +137,11 @@ getMeasurements()
 
 void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 {
+    static bool first_imu = true;
+    if (first_imu) {
+        first_imu = false;
+        std::cout << "First imu message received." << std::endl;
+    }
     if (imu_msg->header.stamp.toSec() <= last_imu_t)
     {
         ROS_WARN("imu message in disorder!");
@@ -164,6 +169,11 @@ void imu_callback(const sensor_msgs::ImuConstPtr &imu_msg)
 
 void feature_callback(const sensor_msgs::PointCloudConstPtr &feature_msg)
 {
+    static bool first_feature = true;
+    if (first_feature) {
+        first_feature = false;
+        std::cout << "First feature message received." << std::endl;
+    }
     if (!init_feature)
     {
         //skip the first detected feature, which doesn't contain optical flow speed
@@ -220,6 +230,7 @@ void process()
         m_estimator.lock();
         for (auto &measurement : measurements)
         {
+            // Imu process, preintergration
             auto img_msg = measurement.second;
             double dx = 0, dy = 0, dz = 0, rx = 0, ry = 0, rz = 0;
             for (auto &imu_msg : measurement.first)
@@ -264,7 +275,10 @@ void process()
                 }
             }
             // set relocalization frame
+            // 重定位相关, 
+            // attention, 如果发生了重点位, 可能位置会发生跳动
             sensor_msgs::PointCloudConstPtr relo_msg = NULL;
+            // TODO 这里相当于取了relo_buf的最后一帧
             while (!relo_buf.empty())
             {
                 relo_msg = relo_buf.front();
@@ -280,7 +294,7 @@ void process()
                     u_v_id.x() = relo_msg->points[i].x;
                     u_v_id.y() = relo_msg->points[i].y;
                     u_v_id.z() = relo_msg->points[i].z;
-                    match_points.push_back(u_v_id);
+                    match_points.push_back(u_v_id); // x, y是特征点在图像中的像素坐标, z是特征点的唯一标识码
                 }
                 Vector3d relo_t(relo_msg->channels[0].values[0], relo_msg->channels[0].values[1], relo_msg->channels[0].values[2]);
                 Quaterniond relo_q(relo_msg->channels[0].values[3], relo_msg->channels[0].values[4], relo_msg->channels[0].values[5], relo_msg->channels[0].values[6]);
@@ -292,18 +306,24 @@ void process()
 
             ROS_DEBUG("processing vision data with stamp %f \n", img_msg->header.stamp.toSec());
 
+
+            // 处理相机的数据, 组合成需要估计的状态量, 进而调用下面的函数进行状态估计
             TicToc t_s;
+            // 值是一个包含一对整数（相机 ID）和一个7维向量的 vector。这个7维向量包含特征点在三维空间中的位置（x, y, z）、在图像平面上的投影坐标（u, v）以及该特征点在图像平面上的速度（velocity_x, velocity_y)
             map<int, vector<pair<int, Eigen::Matrix<double, 7, 1>>>> image;
             for (unsigned int i = 0; i < img_msg->points.size(); i++)
             {
                 int v = img_msg->channels[0].values[i] + 0.5;
                 int feature_id = v / NUM_OF_CAM;
                 int camera_id = v % NUM_OF_CAM;
+                // 特征点的归一化坐标,而不是全局的世界系中的坐标
                 double x = img_msg->points[i].x;
                 double y = img_msg->points[i].y;
                 double z = img_msg->points[i].z;
+                // 像素坐标
                 double p_u = img_msg->channels[1].values[i];
                 double p_v = img_msg->channels[2].values[i];
+                // 光流
                 double velocity_x = img_msg->channels[3].values[i];
                 double velocity_y = img_msg->channels[4].values[i];
                 ROS_ASSERT(z == 1);
@@ -313,6 +333,7 @@ void process()
             }
             estimator.processImage(image, img_msg->header);
 
+            // publish and record result
             double whole_t = t_s.toc();
             printStatistics(estimator, whole_t);
             std_msgs::Header header = img_msg->header;

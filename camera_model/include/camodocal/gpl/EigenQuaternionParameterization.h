@@ -3,6 +3,7 @@
 
 #include "ceres/local_parameterization.h"
 
+
 namespace camodocal
 {
 

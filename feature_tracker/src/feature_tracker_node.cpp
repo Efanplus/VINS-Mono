@@ -24,9 +24,19 @@ int pub_count = 1;
 bool first_image_flag = true;
 double last_image_time = 0;
 bool init_pub = 0;
-
+double cost_time_total = 0;
+long   total_frame_idx = 0;
+// double image_timestamp_bias = 1616381480.790033;
+double image_timestamp_bias = 0.0;
 void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
 {
+    static bool first_imu = true;
+    if (first_imu) {
+        first_imu = false;
+        std::cout << "First imu message received." << std::endl;
+    }
+    // cout <<"Image timestamp: " <<img_msg->header.stamp.toSec() << endl;
+    //printf("Image timestamp = %lf\r\n" , img_msg->header.stamp.toSec());
     if(first_image_flag)
     {
         first_image_flag = false;
@@ -61,7 +71,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     else
         PUB_THIS_FRAME = false;
 
-    cv_bridge::CvImageConstPtr ptr;
+    cv_bridge::CvImagePtr ptr;
     if (img_msg->encoding == "8UC1")
     {
         sensor_msgs::Image img;
@@ -76,8 +86,10 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
     }
     else
         ptr = cv_bridge::toCvCopy(img_msg, sensor_msgs::image_encodings::MONO8);
-
+    ptr->header.stamp.fromSec(img_msg->header.stamp.toSec() - image_timestamp_bias);
     cv::Mat show_img = ptr->image;
+    // cv::imshow("In imag", show_img);
+    // cv::waitKey(1);
     TicToc t_r;
     for (int i = 0; i < NUM_OF_CAM; i++)
     {
@@ -173,7 +185,7 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
             for (int i = 0; i < NUM_OF_CAM; i++)
             {
                 cv::Mat tmp_img = stereo_img.rowRange(i * ROW, (i + 1) * ROW);
-                cv::cvtColor(show_img, tmp_img, CV_GRAY2RGB);
+                cv::cvtColor(show_img, tmp_img, cv::COLOR_GRAY2RGB);
 
                 for (unsigned int j = 0; j < trackerData[i].cur_pts.size(); j++)
                 {
@@ -201,6 +213,18 @@ void img_callback(const sensor_msgs::ImageConstPtr &img_msg)
         }
     }
     ROS_INFO("whole feature tracker processing costs: %f", t_r.toc());
+    cost_time_total = t_r.toc() + cost_time_total;
+    total_frame_idx++;
+    ROS_INFO("Average front-end cost time: %f", cost_time_total / total_frame_idx );
+}
+
+template <typename T>
+T get_ros_parameter(ros::NodeHandle &nh, const std::string parameter_name, T &parameter, T default_val)
+{
+    nh.param<T>(parameter_name.c_str(), parameter, default_val);
+    // ENABLE_SCREEN_PRINTF;
+    cout << "[Ros_parameter]: " << parameter_name << " ==> " << parameter << std::endl;
+    return parameter;
 }
 
 int main(int argc, char **argv)
@@ -208,8 +232,12 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "feature_tracker");
     ros::NodeHandle n("~");
     ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Info);
-    readParameters(n);
+    // ros::console::set_logger_level(ROSCONSOLE_DEFAULT_NAME, ros::console::levels::Debug);
 
+	cv::theRNG().state = 0; // Set random seed
+    readParameters(n);
+    get_ros_parameter<std::string>(n, "image_topic", IMAGE_TOPIC, "/camera/image_color");
+    std::cout << "image_topic: " << IMAGE_TOPIC << std::endl;
     for (int i = 0; i < NUM_OF_CAM; i++)
         trackerData[i].readIntrinsicParameter(CAM_NAMES[i]);
 

@@ -8,6 +8,7 @@ InitialEXRotation::InitialEXRotation(){
     ric = Matrix3d::Identity();
 }
 
+// 类似手眼标定, 求解方程 R_{b_k} ^ {b_{k + 1}} * R_{b_{k + 1}} ^ {c_{k + 1}} = R_{b_{k}}^{c_{k}} * R_{c_k} ^ (c_{k + 1}) = R_{b_{k}}^{c_{k + 1}}
 bool InitialEXRotation::CalibrationExRotation(vector<pair<Vector3d, Vector3d>> corres, Quaterniond delta_q_imu, Matrix3d &calib_ric_result)
 {
     frame_count++;

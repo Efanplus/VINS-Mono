@@ -15,6 +15,7 @@ using namespace Eigen;
 
 #include "parameters.h"
 
+// 存储每个特征点在某个视觉帧上的信息
 class FeaturePerFrame
 {
   public:
@@ -30,9 +31,9 @@ class FeaturePerFrame
         cur_td = td;
     }
     double cur_td;
-    Vector3d point;
-    Vector2d uv;
-    Vector2d velocity;
+    Vector3d point; // 归一化特征点坐标
+    Vector2d uv; // 像素坐标
+    Vector2d velocity; // 像素速度
     double z;
     bool is_used;
     double parallax;
@@ -41,6 +42,7 @@ class FeaturePerFrame
     double dep_gradient;
 };
 
+// 存储每个特征点的信息
 class FeaturePerId
 {
   public:
@@ -65,6 +67,7 @@ class FeaturePerId
     int endFrame();
 };
 
+// 特征管理器
 class FeatureManager
 {
   public:

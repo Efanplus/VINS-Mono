@@ -1,4 +1,5 @@
 #include "estimator.h"
+#include "logs.h"
 
 Estimator::Estimator(): f_manager{Rs}
 {
@@ -672,6 +673,7 @@ bool Estimator::failureDetection()
 // 3.根据倒数第二帧是不是关键帧确定marginization
 void Estimator::optimization()
 {
+    std::cout << "start optimization" << std::endl;
     ceres::Problem problem;
     ceres::LossFunction *loss_function;
     //loss_function = new ceres::HuberLoss(1.0);
@@ -720,6 +722,7 @@ void Estimator::optimization()
         problem.AddResidualBlock(imu_factor, NULL, para_Pose[i], para_SpeedBias[i], para_Pose[j], para_SpeedBias[j]);
     }
     int f_m_cnt = 0;
+    std::cout << " add feature factor" << std::endl;
     int feature_index = -1;
     for (auto &it_per_id : f_manager.feature)
     {
@@ -765,6 +768,8 @@ void Estimator::optimization()
             f_m_cnt++;
         }
     }
+    std::cout << "visual measurement count: " << f_m_cnt << std::endl;
+    std::cout << "feature_index: " << feature_index  << " / " << NUM_OF_F << std::endl;
 
     ROS_DEBUG("visual measurement count: %d", f_m_cnt);
     ROS_DEBUG("prepare for ceres: %f", t_prepare.toc());
@@ -907,11 +912,11 @@ void Estimator::optimization()
 
         TicToc t_pre_margin;
         marginalization_info->preMarginalize();
-        ROS_DEBUG("pre marginalization %f ms", t_pre_margin.toc());
+        VINS_DEBUG_STREAM("pre marginalization " << t_pre_margin.toc() << " ms");
         
         TicToc t_margin;
         marginalization_info->marginalize();
-        ROS_DEBUG("marginalization %f ms", t_margin.toc());
+        VINS_DEBUG_STREAM("marginalization " << t_margin.toc() << " ms");
 
         std::unordered_map<long, double *> addr_shift;
         for (int i = 1; i <= WINDOW_SIZE; i++)
@@ -1003,6 +1008,7 @@ void Estimator::optimization()
     ROS_DEBUG("whole marginalization costs: %f", t_whole_marginalization.toc());
     
     ROS_DEBUG("whole time for ceres: %f", t_whole.toc());
+    std::cout << "end optimization" << std::endl;
 }
 
 void Estimator::slideWindow()

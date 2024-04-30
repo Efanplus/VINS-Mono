@@ -2,7 +2,7 @@
     <arg name="config_path" default = "$(find feature_tracker)/../config/euroc/euroc_config.yaml" />
 	  <arg name="vins_path" default = "$(find feature_tracker)/../config/../" />
     
-    <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="screen">
+    <node name="feature_tracker" pkg="feature_tracker" type="feature_tracker" output="log">
         <param name="config_file" type="string" value="$(arg config_path)" />
         <param name="vins_folder" type="string" value="$(arg vins_path)" />
         <param name="image_topic" type="string" value="/cam0/image_raw" />
@@ -11,6 +11,7 @@
     <node name="vins_estimator" pkg="vins_estimator" type="vins_estimator" output="screen">
        <param name="config_file" type="string" value="$(arg config_path)" />
        <param name="vins_folder" type="string" value="$(arg vins_path)" />
+       <!-- <param name="/rosconsole/config_file" value="/persist/vins_ws/src/VINS-Mono/rosconsole.config"/> -->
     </node>
 
     <node name="pose_graph" pkg="pose_graph" type="pose_graph" output="screen">
